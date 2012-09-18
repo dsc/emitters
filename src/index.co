@@ -1,10 +1,6 @@
-try
-    events = require 'events'
-catch
-    events = require './events'
-
+emitter         = require './emitter'
 chained_emitter = require './chained-emitter'
 ready_emitter   = require './ready-emitter'
 waiting_emitter = require './waiting-emitter'
 
-exports import events import chained_emitter import ready_emitter import waiting_emitter
+exports import emitter import chained_emitter import ready_emitter import waiting_emitter

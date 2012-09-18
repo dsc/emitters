@@ -1,0 +1,33 @@
+{EventEmitter} = require './emitter'
+
+class exports.ChainedEmitter extends EventEmitter
+    
+    /**
+     * @constructor
+     */
+    (parent) ->
+        @_parentEmitter = parent or null
+    
+    
+    parentEmitter: (parent) ->
+        return @_parentEmitter unless parent?
+        @_parentEmitter = parent
+        return this
+    
+    emit: (event, ...args) ->
+        queue = (@_events or {})[event]
+        
+        bubble = true
+        if queue
+            queue = [queue] if typeof queue is 'function'
+            for listener of queue
+                bubble = (listener.apply(this, args) is not false) and bubble
+        
+        if @_parentEmitter and bubble
+            ok = @_parentEmitter.emit(...arguments) or (!!queue)
+        return ok
+    
+    # Update alias
+    trigger: @::emit
+
+
