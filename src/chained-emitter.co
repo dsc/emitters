@@ -6,7 +6,7 @@ class exports.ChainedEmitter extends EventEmitter
      * @constructor
      */
     (parent) ->
-        @_parentEmitter = parent or null
+        @parentEmitter parent if parent
     
     
     parentEmitter: (parent) ->

@@ -53,7 +53,7 @@ class exports.ReadyEmitter extends EventEmitter
         return this if val is @_ready and not force
         @_ready = val
         evt = @__ready_event__
-        evt = "#evt-reset" unless val
+        evt = "#{evt}-reset" unless val
         @emit evt, this
         return this
     
