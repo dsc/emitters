@@ -1,1 +1,1 @@
-module.exports = require("emitters");
+module.exports = require('./src');
