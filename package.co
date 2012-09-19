@@ -1,11 +1,9 @@
 name                            : 'emitters'
 version                         : '0.1.0'
-description                     : 'Fancy node-compatible event emitters, like a ReadyEmitter'
+description                     : 'Fancy node-compatible event emitters, including bubbling and singleton ready events.'
 homepage                        : 'http://github.com/dsc/emitters'
 keywords                        : <[ event ready wait util server client browser ]>
 author                          : 'David Schoonover <dsc@less.ly> (http://less.ly)'
-
-# main                            : './lib'
 
 devDependencies                 : 
     'coco'                      : '>= 0.7.0'
