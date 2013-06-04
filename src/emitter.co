@@ -1,6 +1,7 @@
 
 try
     {EventEmitter} = require 'events'
+    EventEmitter.displayName or= 'EventEmitter'
 catch
     { toString:objToString } = Object::
     isArray = Array.isArray or (o) -> objToString.call(o) is '[object Array]'
