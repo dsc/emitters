@@ -1,10 +1,12 @@
-{EventEmitter} = require './emitter'
+{ EventEmitter } = require './emitter'
 
 
 /**
  * @class An EventEmitter that auto-triggers new handlers once "ready".
+ * @extends EventEmitter
  */
-class exports.ReadyEmitter extends EventEmitter
+export class ReadyEmitter extends EventEmitter
+    @__emitter_methods__ = EventEmitter.__emitter_methods__.concat <[ ready ]>
     
     /**
      * Whether this object is ready.
@@ -73,7 +75,7 @@ class exports.ReadyEmitter extends EventEmitter
             setTimeout ~> callback.call this, this
         this
     
+    
     # Update alias
     addListener : @::on
-
-
+    

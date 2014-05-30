@@ -1,9 +1,47 @@
 require 'buildtools'
 
+
 task \build 'Build coco sources' ->
-    coco <[ -bjc package.co ]>
+    coco <[ -bjc package.json.co ]>
     coco <[ -bc -o lib src ]>
 
 task \watch 'Watch sources for changes' ->
     coco <[ -bcw -o lib src ]>
+
+updateVersion = ->
+    new_version = require './package.json' .version
+    index_src   = read 'index.js'
+    old_version = /VERSION = '([^']+)'/.exec(index_src)[1]
+    say "Updating Version (#old_version --> #new_version) ..."
+    index_src .= replace //#{old_version}//g, new_version
+    write 'index.js', index_src
+
+task \update_version 'Update version number in source' ->
+    updateVersion()
+
+task \dist 'Concat and compress sources for browser' ->
+    Seq()
+        .seq ->
+            say 'Regenerating package.json...'
+            sh 'coco -bjc package.json.co', this
+        .seq ->
+            updateVersion()
+            say 'Building sources...'
+            sh 'coco -bc -o lib src', this
+        .seq ->
+            say 'Browserifying...'
+            sh 'browserify index.js --standalone emitters --debug --no-builtins | exorcist emitters.map', {-verbose}, this
+        .seq (source) ->
+            write 'emitters.js', source
+            say 'Minifying...'
+            write 'emitters.min.js', minify source
+            @ok()
+        .catch (err) ->
+            console.error "Error! #err", err
+            err = new Error err if typeof err is 'string'
+            throw err
+        .seq ->
+            say 'Done!'
+            @ok()
+    
 

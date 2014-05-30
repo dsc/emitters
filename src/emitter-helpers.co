@@ -1,0 +1,44 @@
+/**
+ * @private
+ */
+
+EVENT_SEP = /\s+/
+
+export eventsApi = (obj, action, names, rest) ->
+    return true unless names
+    
+    # Handle event maps
+    if typeof names is 'object'
+        for key, val in names
+            obj[action].apply obj, [key, val].concat(rest)
+        return false
+    
+    # Handle space separated event names
+    if EVENT_SEP.test names
+        for name of names.split EVENT_SEP
+            obj[action].apply obj, [name].concat(rest)
+        return false
+    
+    true
+
+
+export triggerEvents = !(events, args) ->
+    [a1, a2, a3] = args
+    switch args.length
+    case 0  then ev.callback.call  ev.ctx               for ev of events; return
+    case 1  then ev.callback.call  ev.ctx, a1           for ev of events; return
+    case 2  then ev.callback.call  ev.ctx, a1, a2       for ev of events; return
+    case 3  then ev.callback.call  ev.ctx, a1, a2, a3   for ev of events; return
+    default then ev.callback.apply ev.ctx, args         for ev of events
+
+
+export once = (fn) ->
+    var ran, res
+    ->
+        return result if ran
+        ran := true
+        res := fn ...
+        fn  := null
+        result
+
+

@@ -1,10 +1,13 @@
-{EventEmitter} = require './emitter'
+{ EventEmitter } = require './emitter'
+
 
 /**
  * @class An EventEmitter with a ratchet-up waiting counter.
- * @extends Base
+ * @extends EventEmitter
  */
-class exports.WaitingEmitter extends EventEmitter
+export class WaitingEmitter extends EventEmitter
+    @__emitter_methods__ = EventEmitter.__emitter_methods__.concat <[ wait unwait unwaitAnd ]>
+    
     
     /**
      * Count of outstanding tasks.
@@ -47,4 +50,3 @@ class exports.WaitingEmitter extends EventEmitter
             # console.log("#self.unwaitAnd( function #{fn.name or fn.displayName}() )"); console.trace()
             self.unwait(); fn ...
     
-

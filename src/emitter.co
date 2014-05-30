@@ -1,127 +1,136 @@
+{ eventsApi, triggerEvents, once,
+} = require './emitter-helpers'
+
+
 
 try
     {EventEmitter} = require 'events'
     EventEmitter.displayName or= 'EventEmitter'
+    
+    EventEmitter::trigger or= EventEmitter::emit
+    EventEmitter::off     or= EventEmitter::removeListener
 catch
-    { toString:objToString } = Object::
+    { toString:objToString, hasOwnProperty:own } = Object::
     isArray = Array.isArray or (o) -> objToString.call(o) is '[object Array]'
-    slice = [].slice
+    ownKeys = Object.keys   or (o) -> k if own.call(o,k) for k in o
     
     
+    /**
+     * @class An event emitter.
+     * 
+     * Complies with most of the Node.js EventEmitter interface. Differences:
+     *  - `on` and `once` both accept a context parameter, setting `this` for the callback.
+     *  - `off` can filter on any/all of event name, callback, or context; `removeAllListeners` is just an alias.
+     *  - Does not implement methods `listeners` or `setMaxListeners`, or the static method `EventEmitter.listenerCount`.
+     *  - Does not email `newListener` or `removeListener` events.
+     *  - Additional static method `decorate`, which adds 
+     */
     class EventEmitter
-        emit: (type) ->
-            arg = arguments[1]
+        
+        /**
+         * Triggers an event.
+         * 
+         * @param {String} name Name of the event to trigger.
+         * @param {*} ...args Additional arguments.
+         * @returns {this} 
+         */
+        trigger: (name) ->
+            return this unless @_events
             
-            if type is 'error' and
-                    not @_events?.error or
-                    ( isArray(@_events.error) and not @_events.error.length )
-                
-                if arg instanceof Error
-                    throw arg # Unhandled 'error' event
-                else
-                    throw new Error("Uncaught, unspecified 'error' event.")
-                return false
+            args = [].slice.call arguments, 1
+            return this unless eventsApi this, 'trigger', name, args
             
-            queue = @_events?[type]
-            if typeof queue is 'function'
-                listener = queue
-                switch arguments.length
-                    # fast cases
-                    case 1  then listener.call this
-                    case 2  then listener.call this, arg
-                    case 3  then listener.call this, arg, arguments[2]
-                    # slower
-                    default then listener.apply this, slice.call(arguments, 1)
-            else if isArray queue
-                args = slice.call(arguments, 1)
-                listener.apply(this, args) for listener of queue
-            else
-                return false
-            
-            return true
+            triggerEvents that, args        if @_events[name]
+            triggerEvents that, arguments   if @_events.all
+            this
+        
+        emit: @::trigger
         
         
-        on: (type, listener) ->
-            if typeof listener is not 'function'
-                throw new TypeError "addListener only takes instances of Function"
-            @emit 'newListener', type, if typeof listener.listener is 'function' then listener.listener else listener
+        on: (name, fn, context) ->
+            unless eventsApi(this, 'on', name, [fn, context]) and fn
+                return this
             
+            evt = { fn, context, ctx:context or this }
             events = @_events or= {}
-            if not queue = events[type]
-                events[type] = listener
-            else if not isArray queue
-                # Upgrade single listener to Array
-                events[type] = [ queue, listener ]
+            unless events[name]
+                events[name] = [evt]
             else
                 # Copy now to avoid copying on emit (which is way more common)
-                ( events[type] = queue.slice() ).push listener
-            return this
-        
-        addListener : @::on
-        
-        removeListener: (type, listener) ->
-            if typeof listener is not 'function'
-                throw new TypeError "addListener only takes instances of Function"
+                ( events[name] = queue.slice() ).push evt
             
-            queue = @_events?[type]
-            return this unless queue
-            
-            if typeof queue is 'function'
-                if queue is listener or queue.listener is listener
-                    delete @_events[type]
+            this
+        
+        addListener: @::on
+        
+        
+        once: (name, fn, context) ->
+            unless eventsApi(this, 'once', name, [fn, context]) and fn
                 return this
-            
-            idx = -1
-            for fn, i of queue
-                if (fn is listener) or (fn.listener is listener)
-                    idx = i
-                    break
-            return this if idx < 0
-            
-            if queue.length is 1
-                delete @_events[type]
-            else
-                queue = @_events[type] = queue.slice()
-                queue.splice idx, 1
-            return this
-        
-        
-        removeAllListeners: (type) ->
-            if arguments.length is 0
-                @_events = {}
-                return this
-            delete @_events[type] if @_events?[type]
-            return this
-        
-        
-        once: (type, listener) ->
-            if typeof listener is not 'function'
-                throw new TypeError "once only takes instances of Function"
             
             self = this
-            _once = ->
-                self.removeListener type, _once
-                listener ...
-                void
-            _once.listener = listener
+            _once = once ->
+                self.off name, _once
+                fn ...
+            _once._callback = fn
             
-            return @on type, _once
+            @on name, context, _once
         
         
-        listeners: (type) ->
-            events = @_events or= {}
-            queue  = events[type] or= []
-            queue  = events[type] = [events[type]] unless isArray queue
-            return queue
+        off: (name, fn, context) ->
+            unless @_events and eventsApi(this, 'off', name, [fn, context])
+                return this
+            unless name or context or fn
+                @_events = {}
+                return this
+            
+            names = if name then [name] else ownKeys @_events
+            
+            for name of names
+                unless queue = @_events[name]
+                    continue
+                unless fn or context
+                    delete @_events[name]
+                    continue
+                
+                newQueue = @_events[name] = []
+                for evt of queue
+                    if (fn and not (fn is evt.fn or fn is evt.fn._callback)) or (context and context is not evt.context)
+                        newQueue.push evt
+                delete @_events[name] unless newQueue.length
+            
+            this
+        
+        removeListener     : @::off
+        removeAllListeners : @::off
         
         
-        setMaxListeners: (n) ->
-            console.debug 'setMaxListeners is unsupported'
+
+
+### Static methods
+
+EventEmitter import
+    __emitter_methods__: <[ trigger emit on addListener once off removeListener removeAllListeners ]>
     
+    
+    delegate: (target, source, methods) ->
+        return target unless source and target
+        methods ?= @..__emitter_methods__
+        EmitterProto = @::
+        for k of methods
+            method = source[k] or EmitterProto[k]
+            target[k] = method.bind source if typeof method is 'function'
+        target
+    
+    
+    decorate: (target, methods) ->
+        methods ?= @..__emitter_methods__
+        EmitterProto = @::
+        for k of methods
+            target[k] = EmitterProto[k]
+        target
 
 
-EventEmitter::trigger or= EventEmitter::emit
-EventEmitter::off     or= EventEmitter::removeListener
 
 exports.EventEmitter = EventEmitter
 

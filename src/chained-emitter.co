@@ -1,9 +1,13 @@
-{EventEmitter} = require './emitter'
+{ EventEmitter } = require './emitter'
+
 
 /**
  * @class An EventEmitter that re-dispatches events to its parent.
+ * @extends EventEmitter
  */
-class exports.ChainedEmitter extends EventEmitter
+export class ChainedEmitter extends EventEmitter
+    @__emitter_methods__ = EventEmitter.__emitter_methods__.concat <[ parentEmitter ]>
+    
     
     /**
      * @constructor
@@ -24,28 +28,29 @@ class exports.ChainedEmitter extends EventEmitter
     parentEmitter: (parent) ->
         return @_parentEmitter unless parent?
         @_parentEmitter = parent
-        return this
+        this
+    
     
     /**
      * As EventEmitter::emit(), but patched to bubble to the
      * parent emitter (if possible), provided the event handler 
      * does not stop propagation by returning `false`.
+     * 
      * @param {String} event Event to emit.
      * @param {...Any} args Arguments to pass to the event handlers.
      * @returns {Boolean} Whether propagation was stopped.
      */
-    emit: (event, ...args) ->
+    trigger: (name, ...args) ->
+        # TODO
         bubble = true
-        if queue = (@_events or {})[event]
-            queue = [queue] if typeof queue is 'function'
+        if queue = (@_events or {})[name]
             for listener of queue
                 bubble = (listener.apply(this, args) is not false) and bubble
         
-        if bubble and typeof @_parentEmitter?.emit is 'function'
-            ok = @_parentEmitter.emit(...arguments) or (!!queue)
-        return ok
+        if bubble and typeof @_parentEmitter?.trigger is 'function'
+            ok = @_parentEmitter.trigger(...arguments) or (!!queue)
+        
+        ok
     
-    # Update alias
-    trigger: @::emit
-
-
+    emit: @::trigger
+    
