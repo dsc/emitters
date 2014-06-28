@@ -1,6 +1,9 @@
-exports import require './chained-emitter'
+exports.VERSION = require '../package.json' .version
+
 exports import require './emitter'
+exports import require './chained-emitter'
 exports import require './ready-emitter'
 exports import require './waiting-emitter'
 
+exports.helpers = require './emitter-helpers'
 

@@ -8,6 +8,7 @@
 export class ReadyEmitter extends EventEmitter
     @__emitter_methods__ = EventEmitter.__emitter_methods__.concat <[ ready ]>
     
+    
     /**
      * Whether this object is ready.
      * @type Boolean
@@ -47,16 +48,16 @@ export class ReadyEmitter extends EventEmitter
      */
     ready: (val, force=false) ->
         return !!@_ready unless val?
+        event = @__ready_event__ or \ready
         
-        if typeof val is 'function'
-            return @on @__ready_event__, val
+        if typeof val == \function
+            return @on event, val
         
         val = !!val
-        return this if val is @_ready and not force
+        return this if val == @_ready and not force
         @_ready = val
-        evt = @__ready_event__
-        evt = "#{evt}-reset" unless val
-        @emit evt, this
+        event = "#{event}-reset" unless val
+        @emit event, this
         return this
     
     
@@ -71,7 +72,8 @@ export class ReadyEmitter extends EventEmitter
      */
     on: (events, callback) ->
         super ...
-        if @ready() and events.split(/\s+/).indexOf(@__ready_event__) > -1
+        event = @__ready_event__ or \ready
+        if @ready() and events.split(/\s+/).indexOf(event) > -1
             setTimeout ~> callback.call this, this
         this
     

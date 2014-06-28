@@ -6,14 +6,22 @@
  * @extends EventEmitter
  */
 export class WaitingEmitter extends EventEmitter
-    @__emitter_methods__ = EventEmitter.__emitter_methods__.concat <[ wait unwait unwaitAnd ]>
+    @__emitter_methods__ = EventEmitter.__emitter_methods__.concat <[ waitingOn wait unwait unwaitAnd ]>
     
     
     /**
      * Count of outstanding tasks.
      * @type Number
+     * @protected
      */
-    _waitingOn : 0
+    _waitingOn: 0
+    
+    
+    /**
+     * @returns {Number} Count of outstanding tasks.
+     */
+    waitingOn: ->
+        @_waitingOn or 0
     
     
     /**

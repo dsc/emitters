@@ -8,33 +8,28 @@ task \build 'Build coco sources' ->
 task \watch 'Watch sources for changes' ->
     coco <[ -bcw -o lib src ]>
 
-updateVersion = ->
-    new_version = require './package.json' .version
-    index_src   = read 'index.js'
-    old_version = /VERSION = '([^']+)'/.exec(index_src)[1]
-    say "Updating Version (#old_version --> #new_version) ..."
-    index_src .= replace //#{old_version}//g, new_version
-    write 'index.js', index_src
-
-task \update_version 'Update version number in source' ->
-    updateVersion()
-
 task \dist 'Concat and compress sources for browser' ->
     Seq()
         .seq ->
             say 'Regenerating package.json...'
             sh 'coco -bjc package.json.co', this
         .seq ->
-            updateVersion()
+            say 'Updating version in bower.json...'
+            bower = require './bower.json'
+            bower.{ version } = require './package.json'
+            write 'bower.json', JSON.stringify(bower, null, 4) + '\n'
+            @ok()
+        .seq ->
             say 'Building sources...'
             sh 'coco -bc -o lib src', this
         .seq ->
             say 'Browserifying...'
-            sh 'browserify index.js --standalone emitters --debug --no-builtins | exorcist emitters.map', {-verbose}, this
+            sh 'browserify ./lib --standalone emitters -r ./lib:emitters  --debug -t require-key --no-builtins -x events', {-verbose}, this
         .seq (source) ->
-            write 'emitters.js', source
+            header = getHeader()
+            write 'emitters.js', header + source
             say 'Minifying...'
-            write 'emitters.min.js', minify source
+            write 'emitters.min.js', header + minify source
             @ok()
         .catch (err) ->
             console.error "Error! #err", err
@@ -44,4 +39,19 @@ task \dist 'Concat and compress sources for browser' ->
             say 'Done!'
             @ok()
     
+
+getHeader = ->
+    require './package.json' |>
+        """
+            /*
+             *      #{&name} -- #{&version}
+             *      (c) 2012-#{ new Date().getFullYear() } #{&author}
+             *      #{&name} is freely distributable under the MIT license.
+             *      
+             *      For all details and documentation:
+             *      #{&homepage}
+             */
+            
+        """
+
 

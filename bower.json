@@ -1,18 +1,13 @@
 {
-    "name"    : "emitters",
-    "version" : "0.1.0",
-    "main"    : [
-        "lib/index.js",
-        "lib/emitter.js",
-        "lib/chained-emitter.js",
-        "lib/ready-emitter.js",
-        "lib/waiting-emitter.js"
-    ],
-    "ignore"  : [
-        "node_modules",
-        "**/.*",
+    "name": "emitters",
+    "version": "0.2.1",
+    "main": "emitters.js",
+    "ignore": [
+        "src",
         "*.co",
         "Cokefile",
-        "src"
+        "node_modules",
+        "**/.*",
+        "tmp"
     ]
 }

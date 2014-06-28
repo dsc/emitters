@@ -30,74 +30,74 @@ catch
         /**
          * Triggers an event.
          * 
-         * @param {String} name Name of the event to trigger.
+         * @param {String} evt Event name(s) to trigger.
          * @param {*} ...args Additional arguments.
          * @returns {this} 
          */
-        trigger: (name) ->
+        trigger: (evt) ->
             return this unless @_events
             
             args = [].slice.call arguments, 1
-            return this unless eventsApi this, 'trigger', name, args
+            return this unless eventsApi this, 'trigger', evt, args
             
-            triggerEvents that, args        if @_events[name]
+            triggerEvents that, args        if @_events[evt]
             triggerEvents that, arguments   if @_events.all
             this
         
         emit: @::trigger
         
         
-        on: (name, fn, context) ->
-            unless eventsApi(this, 'on', name, [fn, context]) and fn
+        on: (evt, fn, context) ->
+            unless eventsApi(this, 'on', evt, [fn, context]) and fn
                 return this
             
             evt = { fn, context, ctx:context or this }
             events = @_events or= {}
-            unless events[name]
-                events[name] = [evt]
+            unless events[evt]
+                events[evt] = [evt]
             else
                 # Copy now to avoid copying on emit (which is way more common)
-                ( events[name] = queue.slice() ).push evt
+                ( events[evt] = queue.slice() ).push evt
             
             this
         
         addListener: @::on
         
         
-        once: (name, fn, context) ->
-            unless eventsApi(this, 'once', name, [fn, context]) and fn
+        once: (evt, fn, context) ->
+            unless eventsApi(this, 'once', evt, [fn, context]) and fn
                 return this
             
             self = this
             _once = once ->
-                self.off name, _once
+                self.off evt, _once
                 fn ...
             _once._callback = fn
             
-            @on name, context, _once
+            @on evt, context, _once
         
         
-        off: (name, fn, context) ->
-            unless @_events and eventsApi(this, 'off', name, [fn, context])
+        off: (evt, fn, context) ->
+            unless @_events and eventsApi(this, 'off', evt, [fn, context])
                 return this
-            unless name or context or fn
+            unless evt or context or fn
                 @_events = {}
                 return this
             
-            names = if name then [name] else ownKeys @_events
+            evts = if evt then [evt] else ownKeys @_events
             
-            for name of names
-                unless queue = @_events[name]
+            for evt of evts
+                unless queue = @_events[evt]
                     continue
                 unless fn or context
-                    delete @_events[name]
+                    delete @_events[evt]
                     continue
                 
-                newQueue = @_events[name] = []
+                newQueue = @_events[evt] = []
                 for evt of queue
                     if (fn and not (fn is evt.fn or fn is evt.fn._callback)) or (context and context is not evt.context)
                         newQueue.push evt
-                delete @_events[name] unless newQueue.length
+                delete @_events[evt] unless newQueue.length
             
             this
         
@@ -105,30 +105,52 @@ catch
         removeAllListeners : @::off
         
         
+        listeners: (type) ->
+            events = @_events or= {}
+            queue  = events[type] or= []
+            queue  = events[type] = [events[type]] unless isArray queue
+            queue
+        
 
 
 ### Static methods
 
 EventEmitter import
-    __emitter_methods__: <[ trigger emit on addListener once off removeListener removeAllListeners ]>
+    __emitter_methods__: <[ emit trigger on off addListener removeListener removeAllListeners once listeners ]>
+    __class__: EventEmitter
     
     
     delegate: (target, source, methods) ->
         return target unless source and target
-        methods ?= @..__emitter_methods__
-        EmitterProto = @::
+        proto    = @::
+        methods ?= @__emitter_methods__
         for k of methods
-            method = source[k] or EmitterProto[k]
+            method = source[k] or proto[k]
             target[k] = method.bind source if typeof method is 'function'
         target
     
     
     decorate: (target, methods) ->
-        methods ?= @..__emitter_methods__
-        EmitterProto = @::
+        proto    = @::
+        methods ?= @__emitter_methods__
         for k of methods
-            target[k] = EmitterProto[k]
+            target[k] = proto[k]
         target
+    
+    
+    # Coco metaprogramming hook
+    extended: (SubClass) ->
+        SuperClass = this
+        
+        for own k, v in SuperClass
+            SubClass[k] = v unless SubClass[k]
+        
+        SubClass.__class__      = SubClass
+        SubClass.__super__      = SuperClass::
+        SubClass.__superclass__ = SuperClass
+        
+        SubClass
+    
 
 
 
