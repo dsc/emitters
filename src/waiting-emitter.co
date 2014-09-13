@@ -49,12 +49,15 @@ export class WaitingEmitter extends EventEmitter
     
     /**
      * @param {Function} fn Function to wrap.
+     * @param {Object} [thisArg] Optional context object to bind to fn.
      * @returns {Function} A function wrapping the passed function with a call
      *  to `unwait()`, then delegating with current context and arguments.
      */
-    unwaitAnd: (fn) ->
+    unwaitAnd: (fn, thisArg) ->
         self = this
         ->
             # console.log("#self.unwaitAnd( function #{fn.name or fn.displayName}() )"); console.trace()
-            self.unwait(); fn ...
+            self.unwait()
+            thisArg ?= this
+            fn.apply thisArg, arguments
     

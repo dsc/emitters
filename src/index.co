@@ -4,6 +4,7 @@ exports import require './emitter'
 exports import require './chained-emitter'
 exports import require './ready-emitter'
 exports import require './waiting-emitter'
+exports import require './utils'
 
 exports.helpers = require './emitter-helpers'
 

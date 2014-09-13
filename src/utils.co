@@ -1,0 +1,30 @@
+
+/**
+ * Returns a function which triggers the given event.
+ * 
+ * @param {EventEmitter} emitter Emitter to trigger.
+ * @param {String} event Event to emit.
+ * @param {*...} [data] Optional data.
+ * @returns {Function}
+ */
+export function emitEvent(emitter, ...data)
+    throw TypeError unless typeof emitter?.emit == 'function'
+    !-> emitter.emit ...data
+
+
+/**
+ * Sets up two emitters so events fired by one are redispatched by the other
+ * (passing along event data).
+ * 
+ * @param {EventEmitter} fromEmitter Source emitter for events.
+ * @param {EventEmitter} toEmitter Emitter to repeat the events.
+ * @param {String} [event='all'] Event to listen for redispatch.
+ * @returns {Function} The redispach handler function (so you can unhook if necessary).
+ */
+export function redispatch(fromEmitter, toEmitter, event='all')
+    throw TypeError unless  typeof fromEmitter?.on == 'function' and
+                            typeof toEmitter?.emit == 'function'
+    handler = !-> toEmitter.emit ...arguments
+    fromEmitter.on event, handler
+    handler
+

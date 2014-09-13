@@ -4,7 +4,7 @@
 
 EVENT_SEP = /\s+/
 
-export eventsApi = (obj, action, names, rest) ->
+export function eventsApi(obj, action, names, rest)
     return true unless names
     
     # Handle event maps
@@ -22,23 +22,23 @@ export eventsApi = (obj, action, names, rest) ->
     true
 
 
-export triggerEvents = !(events, args) ->
-    [a1, a2, a3] = args
+export !function triggerEvents(events, args)
     switch args.length
-    case 0  then ev.callback.call  ev.ctx               for ev of events; return
-    case 1  then ev.callback.call  ev.ctx, a1           for ev of events; return
-    case 2  then ev.callback.call  ev.ctx, a1, a2       for ev of events; return
-    case 3  then ev.callback.call  ev.ctx, a1, a2, a3   for ev of events; return
-    default then ev.callback.apply ev.ctx, args         for ev of events
+    case 0  then ev.callback.call  ev.ctx                       for ev of events; return
+    case 1  then ev.callback.call  ev.ctx, a.0                  for ev of events; return
+    case 2  then ev.callback.call  ev.ctx, a.0, a.1             for ev of events; return
+    case 3  then ev.callback.call  ev.ctx, a.0, a.1, a.2        for ev of events; return
+    case 4  then ev.callback.call  ev.ctx, a.0, a.1, a.2, a.3   for ev of events; return
+    default then ev.callback.apply ev.ctx, args                 for ev of events; return
 
 
-export once = (fn) ->
+export function once(fn)
     var ran, res
     ->
-        return result if ran
+        return res if ran
         ran := true
         res := fn ...
         fn  := null
-        result
+        res
 
 
