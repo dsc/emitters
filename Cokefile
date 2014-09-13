@@ -24,7 +24,8 @@ task \dist 'Concat and compress sources for browser' ->
             sh 'coco -bc -o lib src', this
         .seq ->
             say 'Browserifying...'
-            sh 'browserify ./lib --standalone emitters -r ./lib:emitters  --debug -t require-key --no-builtins -x events', {-verbose}, this
+            sh 'browserify ./lib --standalone emitters -r ./lib:emitters  --debug -t require-key --no-builtins -x events
+                | exorcist emitters.map', {-verbose}, this
         .seq (source) ->
             header = getHeader()
             write 'emitters.js', header + source
