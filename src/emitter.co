@@ -11,7 +11,7 @@ try
     EventEmitter::off     or= EventEmitter::removeListener
 catch
     { toString:objToString, hasOwnProperty:own } = Object::
-    isArray = Array.isArray or (o) -> objToString.call(o) is '[object Array]'
+    isArray = Array.isArray or (o) -> objToString.call(o) == '[object Array]'
     ownKeys = Object.keys   or (o) -> k if own.call(o,k) for k in o
     
     
@@ -21,9 +21,9 @@ catch
      * Complies with most of the Node.js EventEmitter interface. Differences:
      *  - `on` and `once` both accept a context parameter, setting `this` for the callback.
      *  - `off` can filter on any/all of event name, callback, or context; `removeAllListeners` is just an alias.
-     *  - Does not implement methods `listeners` or `setMaxListeners`, or the static method `EventEmitter.listenerCount`.
-     *  - Does not email `newListener` or `removeListener` events.
-     *  - Additional static method `decorate`, which adds 
+     *  - Does not warn on max listeners (and `setMaxListeners()` just logs to console).
+     *  - Does not emit `newListener` or `removeListener` events.
+     *  - Additional static methods `delegate`, and `decorate` which adds 
      */
     class EventEmitter
         
@@ -32,9 +32,10 @@ catch
          * 
          * @param {String} evt Event name(s) to trigger.
          * @param {*} ...args Additional arguments.
-         * @returns {this} 
+         * @returns {this}
+         * @alias trigger
          */
-        trigger: (evt) ->
+        emit: (evt) ->
             return this unless @_events
             
             args = [].slice.call arguments, 1
@@ -44,15 +45,21 @@ catch
             triggerEvents that, arguments   if @_events.all
             this
         
-        emit: @::trigger
+        trigger: @::emit
         
         
-        on: (evt, fn, context) ->
-            unless eventsApi(this, 'on', evt, [fn, context]) and fn
+        on: (evt, fn, thisArg) ->
+            unless eventsApi(this, 'on', evt, [fn, thisArg]) and fn
                 return this
             
-            evt = { fn, context, ctx:context or this }
+            evt = { fn, thisArg, ctx:thisArg or this }
             events = @_events or= {}
+            
+            # TODO
+            # Avoid recursion when evt is "newListener"
+            # if events.newListener
+            #     @emit 'newListener', type, (if typeof fn.listener == 'function' then fn.listener else fn)
+            
             unless events[evt]
                 events[evt] = [evt]
             else
@@ -64,23 +71,23 @@ catch
         addListener: @::on
         
         
-        once: (evt, fn, context) ->
-            unless eventsApi(this, 'once', evt, [fn, context]) and fn
+        once: (evt, fn, thisArg) ->
+            unless eventsApi(this, 'once', evt, [fn, thisArg]) and fn
                 return this
             
             self = this
             _once = once ->
                 self.off evt, _once
                 fn ...
-            _once._callback = fn
+            _once.listener = fn
             
-            @on evt, context, _once
+            @on evt, thisArg, _once
         
         
-        off: (evt, fn, context) ->
-            unless @_events and eventsApi(this, 'off', evt, [fn, context])
+        off: (evt, fn, thisArg) ->
+            unless @_events and eventsApi(this, 'off', evt, [fn, thisArg])
                 return this
-            unless evt or context or fn
+            unless evt or thisArg or fn
                 @_events = {}
                 return this
             
@@ -89,13 +96,13 @@ catch
             for evt of evts
                 unless queue = @_events[evt]
                     continue
-                unless fn or context
+                unless fn or thisArg
                     delete @_events[evt]
                     continue
                 
                 newQueue = @_events[evt] = []
                 for evt of queue
-                    if (fn and not (fn is evt.fn or fn is evt.fn._callback)) or (context and context is not evt.context)
+                    if (fn and not (fn is evt.fn or fn is evt.fn.listener)) or (thisArg and thisArg is not evt.thisArg)
                         newQueue.push evt
                 delete @_events[evt] unless newQueue.length
             
@@ -106,39 +113,94 @@ catch
         
         
         listeners: (type) ->
-            events = @_events or= {}
-            queue  = events[type] or= []
+            queue  = @_events?[type] or []
             queue  = events[type] = [events[type]] unless isArray queue
             queue
+        
+        
+        setMaxListeners: (n) ->
+            console.warn "EventEmitter::setMaxListeners() is unsupported!"
+        
+        
+        /**
+         * @static
+         * @param {EventEmitter} emitter
+         * @param {String} evt
+         * @returns {Number} The number of listeners on an emitter for a given event.
+         */
+        @listenerCount = (emitter, evt) ->
+            emitter?._events?[evt]?.length or 0
         
 
 
 ### Static methods
 
+/**
+ * List of method names used by `delegate` and `decorate` when 
+ * @type String[]
+ */
+export DEFAULT_EVENT_EMITTER_METHODS = <[ emit trigger on off addListener removeListener removeAllListeners once listeners ]>
+
+
+
+/**
+ * EventEmitter static methods.
+ */
 EventEmitter import
-    __emitter_methods__: <[ emit trigger on off addListener removeListener removeAllListeners once listeners ]>
+    __emitter_methods__: DEFAULT_EVENT_EMITTER_METHODS
     __class__: EventEmitter
     
     
-    delegate: (target, source, methods) ->
+    /**
+     * Copies methods from a given source EventEmitter onto a target object,
+     * binding them to the original emitter. This allows the target to masquerade
+     * as the emitter, or for several objects to share an emitter.
+     * 
+     * @static
+     * @param {EventEmitter} source EventEmitter to borrow methods from.
+     * @param {Object} target Object to attach methods to.
+     * @param {String[]} [methods] List of method names to copy. Defaults
+     *  to `__emitter_methods__` on the calling class, or failing
+     *  that, `DEFAULT_EVENT_EMITTER_METHODS`.
+     * @returns {Object} Target object.
+     */
+    delegate: (source, target, methods) ->
         return target unless source and target
         proto    = @::
-        methods ?= @__emitter_methods__
+        methods ?= @__emitter_methods__ or DEFAULT_EVENT_EMITTER_METHODS
         for k of methods
             method = source[k] or proto[k]
             target[k] = method.bind source if typeof method is 'function'
         target
     
     
+    /**
+     * Mixes methods from an EventEmitter class into the target object.
+     * 
+     * @static
+     * @param {Object} target Object to mix methods into.
+     * @param {String[]} [methods] List of method names to copy. Defaults
+     *  to `__emitter_methods__` on the calling class, or failing
+     *  that, `DEFAULT_EVENT_EMITTER_METHODS`.
+     * @returns {Object} Target object.
+     */
     decorate: (target, methods) ->
         proto    = @::
-        methods ?= @__emitter_methods__
+        methods ?= @__emitter_methods__ or DEFAULT_EVENT_EMITTER_METHODS
         for k of methods
             target[k] = proto[k]
         target
     
     
-    # Coco metaprogramming hook
+    
+    /**
+     * Coco metaprogramming hook, called whenever the Class is extended.
+     * 
+     * @private
+     * @static
+     * @param {Class} SubClass
+     * @returns {Class} The Subclass.
+     */
     extended: (SubClass) ->
         SuperClass = this
         
